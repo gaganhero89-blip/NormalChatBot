@@ -1,12 +1,32 @@
-FROM python:latest
+# Use stable Python (NOT latest)
+FROM python:3.11-slim
 
-RUN apt-get update -y && apt-get upgrade -y
+# Prevent Python cache issues + ensure logs show in Render
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-RUN pip3 install -U pip
+# Set workdir first (clean structure)
+WORKDIR /app
 
-COPY . /app/
-WORKDIR /app/
-RUN pip3 install -U -r requirements.txt
+# System dependencies (needed for tgcrypto, pymongo builds, etc.)
+RUN apt-get update -y && apt-get install -y \
+    build-essential \
+    gcc \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-CMD python3 -m NoxxNetwork
+# Upgrade pip properly
+RUN pip install --no-cache-dir --upgrade pip
 
+# Copy only requirements first (better caching)
+COPY requirements.txt .
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy full project
+COPY . .
+
+# Run app
+CMD ["python3", "-m", "NoxxNetwork"]
